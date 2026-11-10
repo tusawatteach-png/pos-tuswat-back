@@ -27,11 +27,13 @@ class ProductRepository implements ProductRepositoryInterface{
         $query = Product::query()->latest();
 
         if (!empty($filters['search'])) {
-            $query->where(
-                'name',
-                'like',
-                '%' . trim($filters['search']) . '%'
-            );
+            $search = trim($filters['search']);
+            $query->where(function ($productQuery) use ($search) {
+                $productQuery
+                    ->where('name', 'like', '%' . $search . '%')
+                    ->orWhere('sku', 'like', '%' . $search . '%')
+                    ->orWhere('barcode', 'like', '%' . $search . '%');
+            });
         }
 
         if (!empty($filters['status']) && $filters['status'] !== "all") {
@@ -39,6 +41,10 @@ class ProductRepository implements ProductRepositoryInterface{
                 'status',
                 $filters['status']
             );
+        }
+
+        if (!empty($filters['category_id'])) {
+            $query->where('category_id', $filters['category_id']);
         }
 
         return $query->paginate($perPage);

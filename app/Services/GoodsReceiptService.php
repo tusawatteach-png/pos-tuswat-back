@@ -6,6 +6,8 @@ use App\DTO\GoodsReceipt\ReceiveGoodsDTO;
 use App\Models\Product;
 use App\Models\Purchase;
 use App\Models\StockMovement;
+use App\Models\Warehouse;
+use App\Models\WarehouseStock;
 use App\Repositories\Interfaces\GoodsReceiptRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -80,6 +82,12 @@ class GoodsReceiptService
                 $stockBefore = (int) $product->stock_qty;
                 $product->stock_qty = $stockBefore + $quantity;
                 $product->save();
+                $defaultWarehouseId = Warehouse::query()->where('is_default', true)->value('id');
+                $warehouseStock = WarehouseStock::query()->firstOrCreate(
+                    ['warehouse_id' => $defaultWarehouseId, 'product_id' => $product->id],
+                    ['quantity' => 0],
+                );
+                $warehouseStock->increment('quantity', $quantity);
                 $purchaseItem->increment('received_quantity', $quantity);
 
                 $receiptItems[] = [

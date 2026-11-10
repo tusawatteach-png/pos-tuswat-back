@@ -15,6 +15,10 @@ use Illuminate\Support\Facades\Storage;
 use ZipArchive;
 use App\Exports\ProductExport;
 use App\Models\Product;
+use App\Models\Warehouse;
+use App\Models\WarehouseStock;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ProductService{
     public function __construct(private ProductRepositoryInterface $repo){}
@@ -39,21 +43,32 @@ class ProductService{
                 $imagePath = $dto->image;
             }
 
-            $product = $this->repo->create([
-                "name" => $dto->name,
-                "stock_qty" => $dto->stock_qty,
-                "cost_price" => $dto->cost_price,
-                "description" => $dto->description,
-                "sku" => $dto->sku,
-                "image" => $imagePath,
-                "min_stock_level" => $dto->min_stock_level,
-                "status" => $dto->status,
-                "product_type" => $dto->product_type,
-                "selling_price" => $dto->selling_price,
-                "brand_id" => $dto->brand_id,
-                "category_id" => $dto->category_id,
-                "barcode" => $this->generateBarcode(),
-            ]);
+            $product = DB::transaction(function () use ($dto, $imagePath) {
+                $product = $this->repo->create([
+                    "name" => $dto->name,
+                    "stock_qty" => $dto->stock_qty,
+                    "cost_price" => $dto->cost_price,
+                    "description" => $dto->description,
+                    "sku" => $dto->sku,
+                    "image" => $imagePath,
+                    "min_stock_level" => $dto->min_stock_level,
+                    "status" => $dto->status,
+                    "product_type" => $dto->product_type,
+                    "selling_price" => $dto->selling_price,
+                    "brand_id" => $dto->brand_id,
+                    "category_id" => $dto->category_id,
+                    "barcode" => $this->generateBarcode(),
+                ]);
+                foreach (Warehouse::query()->get(['id', 'is_default']) as $warehouse) {
+                    WarehouseStock::create([
+                        'warehouse_id' => $warehouse->id,
+                        'product_id' => $product->id,
+                        'quantity' => $warehouse->is_default ? $dto->stock_qty : 0,
+                    ]);
+                }
+
+                return $product;
+            });
             $this->clearProductRelatedCache();
             return $product;
 
@@ -92,12 +107,38 @@ public function update(string $id, UpdateProductDTO $dto)
         }
         // If it's null, you can choose to omit it from $data so the database column isn't overwritten with null
 
-        $result = $this->repo->update($id, $data);
+        $result = DB::transaction(function () use ($id, $data, $dto) {
+            $product = Product::query()->lockForUpdate()->findOrFail($id);
+            $quantityDifference = $dto->stock_qty - (int) $product->stock_qty;
+            $defaultWarehouseId = Warehouse::query()->where('is_default', true)->value('id');
+            $defaultStock = WarehouseStock::query()
+                ->where('warehouse_id', $defaultWarehouseId)
+                ->where('product_id', $product->id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($quantityDifference < 0 && (!$defaultStock || $defaultStock->quantity < abs($quantityDifference))) {
+                throw ValidationException::withMessages([
+                    'stock_qty' => 'Stock can only be reduced by the quantity available in the default warehouse.',
+                ]);
+            }
+
+            $defaultStock ??= WarehouseStock::create([
+                'warehouse_id' => $defaultWarehouseId,
+                'product_id' => $product->id,
+                'quantity' => 0,
+            ]);
+            $defaultStock->increment('quantity', $quantityDifference);
+
+            return $this->repo->update($id, $data);
+        });
 
         $this->clearProductRelatedCache();
 
         return $result;
 
+    } catch (ValidationException $exception) {
+        throw $exception;
     } catch (\Throwable $th) {
         return response()->json([
             'message' => $th->getMessage(),
@@ -297,7 +338,36 @@ public function update(string $id, UpdateProductDTO $dto)
             unset($product);
 
             // Insert ចូល Database ជា Bulk
-            $save = $this->repo->insertBulk($productData);
+            $save = DB::transaction(function () use ($productData) {
+                if (!$this->repo->insertBulk($productData)) {
+                    return false;
+                }
+
+                $products = Product::query()
+                    ->whereIn('sku', array_column($productData, 'sku'))
+                    ->get(['id', 'stock_qty']);
+                $warehouses = Warehouse::query()->get(['id', 'is_default']);
+                $now = now();
+                $stockRows = [];
+
+                foreach ($products as $product) {
+                    foreach ($warehouses as $warehouse) {
+                        $stockRows[] = [
+                            'warehouse_id' => $warehouse->id,
+                            'product_id' => $product->id,
+                            'quantity' => $warehouse->is_default ? $product->stock_qty : 0,
+                            'created_at' => $now,
+                            'updated_at' => $now,
+                        ];
+                    }
+                }
+
+                if ($stockRows) {
+                    WarehouseStock::insert($stockRows);
+                }
+
+                return true;
+            });
 
             if ($save) {
                 $this->clearProductRelatedCache();

@@ -15,10 +15,13 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\PurchaseItemController;
 use App\Http\Controllers\PurchasePaymentController;
+use App\Http\Controllers\SaleController;
 use App\Http\Controllers\StockMovementController;
+use App\Http\Controllers\StockTransferController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\UniteController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\WarehouseController;
 
 Route::middleware('web')->group(function () {
     // Public Routes
@@ -54,13 +57,14 @@ Route::middleware('web')->group(function () {
             Route::get('/category/state', [CategoryController::class, 'state']);
             Route::post('/category/import', [CategoryController::class, 'import']);
             Route::apiResource('category', CategoryController::class);
-            Route::apiResource('bank', BankController::class);
+            Route::apiResource('bank', BankController::class)->except(['index']);
             Route::apiResource('orderPaymentMethod', OrderPaymentMethodController::class);
             Route::apiResource('unite', UniteController::class);
         });
 
         // Admin + Manager
         Route::middleware('role:Admin,Manager')->group(function () {
+            Route::get('/bank', [BankController::class, 'index']);
             Route::post('/supplier/import', [SupplierController::class, 'import']);
             Route::get('/supplier/export/excel', [SupplierController::class, 'exportExcel']);
             Route::get('/supplier/export/pdf', [SupplierController::class, 'exportPdf']);
@@ -82,6 +86,24 @@ Route::middleware('web')->group(function () {
             Route::post('/purchase/{purchase}/payments', [PurchasePaymentController::class, 'store']);
             Route::apiResource('purchaseItem', PurchaseItemController::class);
             Route::apiResource('stockMovement', StockMovementController::class);
+            Route::get('/warehouses', [WarehouseController::class, 'index']);
+            Route::post('/warehouses', [WarehouseController::class, 'store']);
+            Route::get('/warehouses/{id}/stocks', [WarehouseController::class, 'stocks']);
+            Route::get('/stock-transfers/summary', [StockTransferController::class, 'summary']);
+            Route::get('/stock-transfers/stats', [StockTransferController::class, 'stats']);
+            Route::get('/stock-transfers', [StockTransferController::class, 'index']);
+            Route::post('/stock-transfers', [StockTransferController::class, 'store']);
+            Route::get('/stock-transfers/{id}', [StockTransferController::class, 'show']);
+            Route::put('/stock-transfers/{id}', [StockTransferController::class, 'update']);
+            Route::patch('/stock-transfers/{id}', [StockTransferController::class, 'update']);
+            Route::delete('/stock-transfers/{id}', [StockTransferController::class, 'destroy']);
+            Route::patch('/stock-transfers/{id}/status', [StockTransferController::class, 'changeStatus']);
+            Route::get('/stock-transfer-requests', [StockTransferController::class, 'requestIndex']);
+            Route::post('/stock-transfer-requests', [StockTransferController::class, 'requestStore']);
+            Route::get('/stock-transfer-requests/{id}', [StockTransferController::class, 'requestShow']);
+            Route::put('/stock-transfer-requests/{id}', [StockTransferController::class, 'requestUpdate']);
+            Route::patch('/stock-transfer-requests/{id}', [StockTransferController::class, 'requestUpdate']);
+            Route::delete('/stock-transfer-requests/{id}', [StockTransferController::class, 'requestDestroy']);
         });
 
         // Admin + Manager + Staff
@@ -91,6 +113,9 @@ Route::middleware('web')->group(function () {
             Route::get('/customer/export/pdf', [CustomerController::class, 'exportPdf']);
             Route::get('/customer/stats', [CustomerController::class, 'stats']);
             Route::apiResource('customer', CustomerController::class);
+            Route::get('/sales', [SaleController::class, 'index']);
+            Route::post('/sales', [SaleController::class, 'store']);
+            Route::get('/sales/{id}', [SaleController::class, 'show']);
             Route::apiResource('order', OrderController::class);
             Route::apiResource('orderItem', OrderItemController::class);
         });

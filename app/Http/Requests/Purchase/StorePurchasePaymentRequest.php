@@ -17,6 +17,7 @@ class StorePurchasePaymentRequest extends FormRequest
         return [
             'amount' => ['required', 'numeric', 'gt:0', 'max:9999999999.99'],
             'method' => ['required', Rule::in(['cash', 'bakong', 'bank_transfer'])],
+            'bank_id' => ['nullable', 'required_if:method,bank_transfer', 'integer', 'exists:bank,id'],
             'reference_no' => ['required', 'string', 'max:255', 'unique:purchase_payments,reference_no'],
             'proof_image' => ['nullable', 'image', 'max:5120'],
             'notes' => ['nullable', 'string', 'max:5000'],

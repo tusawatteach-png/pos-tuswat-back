@@ -25,7 +25,7 @@ class UpdateProdctRequest extends FormRequest
 
     return [
         "name" => "required|string",
-        "stock_qty" => "required|integer",
+        "stock_qty" => "required|integer|min:0",
         "cost_price" => "required|numeric",
         "description" => "nullable|string",
         "sku" => "required|string|unique:products,sku," . $productId,

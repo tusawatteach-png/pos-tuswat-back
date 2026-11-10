@@ -11,6 +11,7 @@ use App\Http\Requests\Product\UpdateProdctRequest;
 use App\Services\ProductService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class ProductController extends Controller
 {
@@ -27,7 +28,7 @@ class ProductController extends Controller
             ],201);
         } catch (\Throwable $th) {
             return response()->json([
-                "message"=>$th->getMessage()
+                "message" => $th->getMessage()
             ],500);
         }
     }
@@ -69,9 +70,14 @@ class ProductController extends Controller
                 "status"=>"Create Success",
                 "data"=>$result,
             ], 201);
+        } catch (ValidationException $exception) {
+            return response()->json([
+                'message' => collect($exception->errors())->flatten()->first(),
+                'errors' => $exception->errors(),
+            ], 422);
         } catch (\Throwable $th) {
             return response()->json([
-                "message"=>$th->getMessage()
+                "message" => $th->getMessage()
             ],500);
         }
     }
@@ -108,6 +114,11 @@ class ProductController extends Controller
             "data" => $result,
         ], 200);
 
+    } catch (ValidationException $exception) {
+        return response()->json([
+            'message' => collect($exception->errors())->flatten()->first(),
+            'errors' => $exception->errors(),
+        ], 422);
     } catch (\Throwable $th) {
         return response()->json([
             "message" => $th->getMessage()
@@ -116,10 +127,14 @@ class ProductController extends Controller
 }
     public function index(Request $request){
         try {
+            $request->validate([
+                'category_id' => ['sometimes', 'integer', 'exists:categories,id'],
+            ]);
             $perPage= $request->integer('per_page',10);
             $filter = array_filter([
                 'search' => $request->input('search'),
                 'status' => $request->input('status'),
+                'category_id' => $request->input('category_id'),
             ], fn($value) => !is_null($value) && $value !== "");
 
             $result=$this->ProductService->getAllProduct($perPage,$filter);
@@ -127,6 +142,11 @@ class ProductController extends Controller
                 "status"=>"Get Success",
                 "data"=>$result,
             ],200);
+        } catch (ValidationException $exception) {
+            return response()->json([
+                'message' => collect($exception->errors())->flatten()->first(),
+                'errors' => $exception->errors(),
+            ], 422);
         } catch (\Throwable $th) {
             return response()->json([
                 "message"=>$th->getMessage()

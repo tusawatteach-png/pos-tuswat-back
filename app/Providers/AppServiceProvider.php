@@ -18,20 +18,26 @@ use App\Repositories\Interfaces\OrderRepositoryInterface;
 use App\Repositories\Interfaces\ProductRepositoryInterface;
 use App\Repositories\Interfaces\PurchaseItemRepositoryInterface;
 use App\Repositories\Interfaces\PurchaseRepositoryInterface;
+use App\Repositories\Interfaces\SaleRepositoryInterface;
 use App\Repositories\Interfaces\StockmovementRepositoryInterface;
+use App\Repositories\Interfaces\StockTransferRepositoryInterface;
 use App\Repositories\Interfaces\SupplierRepositoryInterface;
 use App\Repositories\Interfaces\UniteRepositoryInterface;
 use App\Repositories\Interfaces\UserRepositoryInterface;
+use App\Repositories\Interfaces\WarehouseRepositoryInterface;
 use App\Repositories\OrderItemRepository;
 use App\Repositories\OrderPaymentMethodRepository;
 use App\Repositories\OrderRepository;
 use App\Repositories\ProductRepository;
 use App\Repositories\PurchaseItemRepository;
 use App\Repositories\PurchaseRepository;
+use App\Repositories\SaleRepository;
 use App\Repositories\StockmovementRepository;
+use App\Repositories\StockTransferRepository;
 use App\Repositories\SupplierRepository;
 use App\Repositories\UniteRepository;
 use App\Repositories\UserRepository;
+use App\Repositories\WarehouseRepository;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -73,12 +79,24 @@ class AppServiceProvider extends ServiceProvider
             PurchaseItemRepository::class,
         );
         $this->app->bind(
+            SaleRepositoryInterface::class,
+            SaleRepository::class,
+        );
+        $this->app->bind(
             GoodsReceiptRepositoryInterface::class,
             GoodsReceiptRepository::class,
         );
         $this->app->bind(
             StockmovementRepositoryInterface::class,
             StockmovementRepository::class,
+        );
+        $this->app->bind(
+            StockTransferRepositoryInterface::class,
+            StockTransferRepository::class,
+        );
+        $this->app->bind(
+            WarehouseRepositoryInterface::class,
+            WarehouseRepository::class,
         );
         $this->app->bind(
             CustomerRepositoryInterface::class,

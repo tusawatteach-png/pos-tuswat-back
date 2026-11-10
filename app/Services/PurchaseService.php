@@ -109,6 +109,7 @@ class PurchaseService
                 $lockedPurchase->goodsReceipts()->exists()
                 || $lockedPurchase->items()->where('received_quantity', '>', 0)->exists()
                 || $lockedPurchase->payments()->exists()
+                || in_array($lockedPurchase->payment_status, ['partial', 'paid'], true)
             ) {
                 throw ValidationException::withMessages([
                     'purchase' => 'A purchase order with receipts or payments cannot be edited.',
@@ -215,6 +216,7 @@ class PurchaseService
                 $purchase->goodsReceipts()->exists()
                 || $purchase->items()->where('received_quantity', '>', 0)->exists()
                 || $purchase->payments()->exists()
+                || in_array($purchase->payment_status, ['partial', 'paid'], true)
             ) {
                 throw ValidationException::withMessages([
                     'purchase' => 'A purchase order with receipts or payments cannot be deleted.',
@@ -285,6 +287,7 @@ class PurchaseService
                 $payment = PurchasePayment::create([
                     'purchase_id' => $purchase->id,
                     'supplier_id' => $purchase->supplier_id,
+                    'bank_id' => $data['bank_id'] ?? null,
                     'amount' => number_format($amountCents / 100, 2, '.', ''),
                     'method' => $data['method'],
                     'reference_no' => $data['reference_no'],
@@ -296,7 +299,7 @@ class PurchaseService
                     'payment_status' => $amountCents === $balanceCents ? 'paid' : 'partial',
                 ]);
 
-                return $payment->fresh(['purchase', 'supplier']);
+                return $payment->fresh(['purchase', 'supplier', 'bank']);
             });
         } catch (\Throwable $exception) {
             if ($proofPath) {
