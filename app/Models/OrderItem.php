@@ -14,9 +14,18 @@ class OrderItem extends Model
         "order_id",
         "quantity",
         "unit_price",
+        "unit_price_snapshot",
         "discount",
         "subtotal",
     ];
+
+    protected $casts = [
+        'quantity' => 'integer',
+        'unit_price_snapshot' => 'decimal:2',
+        'discount' => 'decimal:2',
+        'subtotal' => 'decimal:2',
+    ];
+
     public function product(){
         return $this->belongsTo(Product::class);
     }

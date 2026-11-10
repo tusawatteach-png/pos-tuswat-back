@@ -118,6 +118,12 @@ Route::middleware('web')->group(function () {
             Route::get('/sales/{id}', [SaleController::class, 'show']);
             Route::apiResource('order', OrderController::class);
             Route::apiResource('orderItem', OrderItemController::class);
+            Route::get('/orders', [OrderController::class, 'pendingIndex']);
+            Route::post('/orders/pending', [OrderController::class, 'storePending']);
+            Route::patch('/orders/{id}/specs', [OrderController::class, 'updatePendingSpecs']);
+            Route::post('/orders/{id}/deposit', [OrderController::class, 'addDeposit']);
+            Route::post('/orders/{id}/convert-to-sale', [OrderController::class, 'convertToSale']);
+            Route::post('/orders/{id}/cancel', [OrderController::class, 'cancelPending']);
         });
     });
 });

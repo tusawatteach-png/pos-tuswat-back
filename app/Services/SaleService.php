@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\DTO\Sale\CreateSaleDTO;
 use App\Models\Customer;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\StockMovement;
@@ -50,6 +51,12 @@ class SaleService
 
                 $itemsById = collect($dto->items)->keyBy(fn (array $item) => (int) $item['product_id']);
                 $products = $this->repo->lockProducts($itemsById->keys()->all())->keyBy('id');
+                $reservedQuantities = OrderItem::query()
+                    ->selectRaw('product_id, SUM(quantity) as reserved_quantity')
+                    ->whereIn('product_id', $itemsById->keys())
+                    ->whereHas('order', fn ($query) => $query->where('order_status', 'pending'))
+                    ->groupBy('product_id')
+                    ->pluck('reserved_quantity', 'product_id');
                 $subtotalCents = 0;
                 $saleItems = [];
                 $stockChanges = [];
@@ -64,9 +71,10 @@ class SaleService
                     }
 
                     $quantity = (int) $item['quantity'];
-                    if ($quantity > (int) $product->stock_qty) {
+                    $available = (int) $product->stock_qty - (int) ($reservedQuantities->get($product->id) ?? 0);
+                    if ($quantity > $available) {
                         throw ValidationException::withMessages([
-                            'items' => "Insufficient stock for {$product->name}. Available quantity: {$product->stock_qty}.",
+                            'items' => "Insufficient available stock for {$product->name}. Available quantity: ".max(0, $available).'.',
                         ]);
                     }
 

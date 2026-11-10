@@ -4,15 +4,88 @@ namespace App\Http\Controllers;
 
 use App\DTO\Order\CreateOrderDTO;
 use App\DTO\Order\UpdateOrderDTO;
+use App\Http\Requests\Order\ConvertPendingOrderRequest;
+use App\Http\Requests\Order\StoreOrderDepositRequest;
+use App\Http\Requests\Order\StorePendingOrderRequest;
+use App\Http\Requests\Order\UpdatePendingOrderSpecsRequest;
 use App\Http\Requests\Order\StoreOrderRequest;
 use App\Http\Requests\Order\UpdateOrderRequest;
+use App\Services\PendingOrderService;
 use App\Services\OrderService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
     public function __construct(
-        private OrderService $OrderService
+        private OrderService $OrderService,
+        private PendingOrderService $pendingOrderService
     ){}
+
+    public function pendingIndex(Request $request): JsonResponse
+    {
+        $filters = $request->validate([
+            'status' => ['sometimes', 'in:pending'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'page' => ['sometimes', 'integer', 'min:1'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->pendingOrderService->pendingOrders(
+                trim((string) ($filters['search'] ?? '')),
+                (int) ($filters['per_page'] ?? 100)
+            ),
+        ]);
+    }
+
+    public function storePending(StorePendingOrderRequest $request): JsonResponse
+    {
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->pendingOrderService->create($request->validated()),
+        ], 201);
+    }
+
+    public function updatePendingSpecs(UpdatePendingOrderSpecsRequest $request, string $id): JsonResponse
+    {
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->pendingOrderService->updateSpecs((int) $id, $request->validated()),
+        ]);
+    }
+
+    public function addDeposit(StoreOrderDepositRequest $request, string $id): JsonResponse
+    {
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->pendingOrderService->addDeposit((int) $id, $request->validated()),
+        ]);
+    }
+
+    public function convertToSale(ConvertPendingOrderRequest $request, string $id): JsonResponse
+    {
+        $result = $this->pendingOrderService->convertToSale(
+            (int) $id,
+            (int) $request->user()->id,
+            $request->validated()['payment_method'] ?? 'cash'
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $result,
+        ]);
+    }
+
+    public function cancelPending(string $id): JsonResponse
+    {
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->pendingOrderService->cancel((int) $id),
+        ]);
+    }
+
     /**
      * Display a listing of the resource.
      */
