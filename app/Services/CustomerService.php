@@ -10,6 +10,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -21,30 +22,63 @@ class CustomerService{
     ){}
     public function create(CreateCustomerDTO $dto)
     {
-        $result=$this->repo->create([
+        $data = [
             "name"=>$dto->name,
             "phone"=>$dto->phone,
             "address"=>$dto->address,
             "email"=>$dto->email,
             "group"=>$dto->group ?? "Standard",
             "status"=>$dto->status ?? "Active",
-        ]);
+        ];
+        $imagePath = null;
+        try {
+            if ($dto->image) {
+                $imagePath = $dto->image->store('customers/profile', 'public');
+                if (!$imagePath) {
+                    throw new \RuntimeException('Unable to store customer profile image.');
+                }
+                $data['image'] = $imagePath;
+            }
+            $result = $this->repo->create($data);
+        } catch (\Throwable $exception) {
+            if ($imagePath) {
+                Storage::disk('public')->delete($imagePath);
+            }
+            throw $exception;
+        }
         $this->clearStatsCache();
         return $result;
     }
     public function update(string $id,UpdateCustomerDTO $dto)
     {
-        $result=$this->repo->update(
-            $id,
-            [
-                "name"=>$dto->name,
-                "phone"=>$dto->phone,
-                "address"=>$dto->address,
-                "email"=>$dto->email,
-                "group"=>$dto->group ?? "Standard",
-                "status"=>$dto->status ?? "Active",
-            ]
-        );
+        $customer = $this->repo->findById($id);
+        $data = [
+            "name"=>$dto->name,
+            "phone"=>$dto->phone,
+            "address"=>$dto->address,
+            "email"=>$dto->email,
+            "group"=>$dto->group ?? "Standard",
+            "status"=>$dto->status ?? "Active",
+        ];
+        $newImagePath = null;
+        try {
+            $newImagePath = $dto->image?->store('customers/profile', 'public');
+            if ($dto->image && !$newImagePath) {
+                throw new \RuntimeException('Unable to store customer profile image.');
+            }
+            if ($newImagePath) {
+                $data['image'] = $newImagePath;
+            }
+            $result = $this->repo->update($id, $data);
+        } catch (\Throwable $exception) {
+            if ($newImagePath) {
+                Storage::disk('public')->delete($newImagePath);
+            }
+            throw $exception;
+        }
+        if ($newImagePath && $customer->image) {
+            Storage::disk('public')->delete($customer->image);
+        }
         $this->clearStatsCache();
         return $result;
     }

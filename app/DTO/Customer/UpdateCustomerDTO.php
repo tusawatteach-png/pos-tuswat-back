@@ -1,5 +1,8 @@
 <?php
 namespace App\DTO\Customer;
+
+use Illuminate\Http\UploadedFile;
+
 class UpdateCustomerDTO{
     public function __construct(
         public string $name,
@@ -8,5 +11,6 @@ class UpdateCustomerDTO{
         public ?string $email = null,
         public ?string $group = 'Standard',
         public ?string $status = 'Active',
+        public ?UploadedFile $image = null,
     ){}
 }

@@ -151,6 +151,7 @@ class CustomerController extends Controller
                     $request->email,
                     $request->group,
                     $request->status,
+                    $request->file('image'),
                 )
             );
             return response()->json([
@@ -206,6 +207,7 @@ class CustomerController extends Controller
                     array_key_exists("email", $validated) ? $validated["email"] : $customer->email,
                     $validated["group"] ?? $customer->group,
                     $validated["status"] ?? $customer->status,
+                    $request->file('image'),
                 )
             );
             return response()->json([

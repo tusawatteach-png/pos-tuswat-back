@@ -53,6 +53,12 @@ class UpdateCustomerRequest extends FormRequest
                 "string",
                 "in:Active,Inactive",
             ],
+            "image" => [
+                "sometimes",
+                "nullable",
+                "image",
+                "max:5120",
+            ],
         ];
     }
 }
